@@ -16,13 +16,11 @@ class ScheduleInstallation
   end
 
   def call
+    cant_schedule_while_credit_check_pending
+
     desired_date = params[:desired_date]
     if request.xhr?
       begin
-        if @installation.pending_credit_check?
-          render :json => {:errors => ["Cannot schedule installation while credit check is pending"]}, :status => 400
-          return
-        end
         audit_trail_for(current_user) do
           if @installation.schedule!(desired_date, :installation_type => params[:installation_type], :city => @city)
             if @installation.scheduled_date
@@ -39,11 +37,6 @@ class ScheduleInstallation
         render :json => {:errors => ["Could not schedule installation. Start by making sure the desired date is on a business day."]}
       end
     else
-      if @installation.pending_credit_check?
-        flash[:error] = "Cannot schedule installation while credit check is pending"
-        redirect_to installations_path(:city_id => @installation.city_id, :view => "calendar")
-        return
-      end
       begin
         audit_trail_for(current_user) do
           if @installation.schedule!(desired_date, :installation_type => params[:installation_type], :city => @city)
@@ -62,6 +55,18 @@ class ScheduleInstallation
         flash[:error] = e.message
       end
       redirect_to(@installation.customer_provided_equipment? ? customer_provided_installations_path : installations_path(:city_id => @installation.city_id, :view => "calendar"))
+    end
+  end
+
+  def cant_schedule_while_credit_check_pending
+    if @installation.pending_credit_check?
+      if request.xhr?
+        render :json => {:errors => ["Cannot schedule installation while credit check is pending"]}, :status => 400
+      else
+        flash[:error] = "Cannot schedule installation while credit check is pending"
+        redirect_to installations_path(:city_id => @installation.city_id, :view => "calendar")
+      end
+      return
     end
   end
 
