@@ -2,6 +2,20 @@ class InstallationsController < ActionController::Base
   # lots more stuff...
 
   def schedule
+    ScheduleInstallation.new(self, @installation, @city).call
+  end
+
+  # lots more stuff...
+end
+
+class ScheduleInstallation
+  def initialize(controller, installation, city)
+    @controller = controller
+    @installation = installation
+    @city = city
+  end
+
+  def call
     desired_date = params[:desired_date]
     if request.xhr?
       begin
@@ -27,7 +41,8 @@ class InstallationsController < ActionController::Base
     else
       if @installation.pending_credit_check?
         flash[:error] = "Cannot schedule installation while credit check is pending"
-        redirect_to installations_path(:city_id => @installation.city_id, :view => "calendar") and return
+        redirect_to installations_path(:city_id => @installation.city_id, :view => "calendar")
+        return
       end
       begin
         audit_trail_for(current_user) do
@@ -50,5 +65,7 @@ class InstallationsController < ActionController::Base
     end
   end
 
-  # lots more stuff...
+  def method_missing(m, *a, &b)
+    @controller.send(m, *a, &b)
+  end
 end
